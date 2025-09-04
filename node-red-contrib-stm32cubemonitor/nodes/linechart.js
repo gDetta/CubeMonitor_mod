@@ -102,6 +102,12 @@
       };
 
       /*
+       * Custom Private variables. 
+       */
+      /* Save opacity state of variables before graph flush */
+      this.variableOpacities = [];
+
+      /*
        * D3 functions and objects
        */
       /* Pool of 10 colors */
@@ -1736,6 +1742,18 @@
     flushData() {
       // console.log("flush Data");
 
+      // Save current opacities
+      this.variableOpacities = this.dataSets.map(dataset => {
+        return {
+          index: dataset.index,
+          opacity: dataset.$path.style("opacity")
+        };
+      });
+
+      // console.info("Current dataSets: ", this.dataSets);
+      // console.info("Saved opacities: ", this.variableOpacities);
+
+
       // Remove pathss, dots and focus
       for (let i = 0; i < this.dataSets.length; i++) {
         this.dataSets[i].$path.datum([]).attr("d", this.line);
@@ -1777,6 +1795,47 @@
       this.reDrawChart(0, this.WINDOW_SIZE, 0, 100, false);
     }
 
+    /**
+     * Restore variables opacity after flush.
+     */
+    restoreOpacities() {
+
+        if (this.dataSets.length === 0) {
+          console.warn("No datasets available to restore opacities.");
+          return;
+        }
+
+        for (const dataset of this.dataSets) 
+        {
+          // console.log(`Dataset index: ${dataset.index}`);
+
+          const savedOpacity = this.variableOpacities.find(opacity => opacity.index === dataset.index);
+          
+          if (savedOpacity) 
+          {
+            // console.log(`Restoring opacity for index ${dataset.index} and opacity:`, savedOpacity.opacity);
+
+            this.dataSets[dataset.index].$path.style("opacity", savedOpacity.opacity );
+            this.dataSets[dataset.index].$dots.style("opacity", savedOpacity.opacity );
+            this.dataSets[dataset.index].$focus.style("opacity", savedOpacity.opacity);
+            this.$variablesContainer
+              .selectAll(".variable_" + dataset.index)
+              .style("opacity", savedOpacity.opacity == 1 ? 1 : 0.5);
+
+          } 
+          else 
+          {
+            console.warn(`No saved opacity found for index ${dataset.index}`);
+          }
+        }
+    }
+
+    /** @NOTE:  
+     * log, debug, dbg
+     * 
+     * to enable log console uncomment:
+     * dashboard.webContents.openDevTools(); in main.js
+     */
     
 
     /**

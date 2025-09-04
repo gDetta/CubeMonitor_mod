@@ -280,6 +280,7 @@ body {font-family: Arial, Helvetica, sans-serif;}
     scope.$watch("msg", msg => {
       if (msg) {
         switch (msg.topic) {
+
           case "clear":
             const oldDatasets = chart.dataSets.map(function(elem) {return {variablename: elem.variablename, groupname: elem.groupname}});
             chart.clearChart();
@@ -291,6 +292,24 @@ body {font-family: Arial, Helvetica, sans-serif;}
             }
             imported = false;
             break;
+            
+          case "clear only time":
+            const oldDatasets2 = chart.dataSets.map(function(elem) {return {variablename: elem.variablename, groupname: elem.groupname}});
+            
+            chart.clearChart();
+
+            if (!imported) {
+              for (let i = 0; i < oldDatasets2.length; i++) {
+                chart.findDataset(chart.dataSets,oldDatasets2[i].groupname, oldDatasets2[i].variablename);
+              }
+              chart.firstts = null;
+            }
+            imported = false;
+
+            chart.restoreOpacities(); 
+
+            break;
+
           case "data":
             chart.updateChart(msg.payload, true);
             break;
