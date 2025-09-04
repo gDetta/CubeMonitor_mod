@@ -1,0 +1,1479 @@
+<!--
+* module node-red-contrib-stm32cubemonitor
+* Copyright(c) 2019 STMicroelectronics
+-->
+<link rel="stylesheet" href="select2/css/select2.min.css" />
+<script src="select2/js/select2.min.js"></script>
+<script src="hyperlist.js"></script>
+<!-- #region exe-config -->
+<script type="text/x-red" data-template-name="exe-config">
+  <style>
+    #node-config-input-exevariablelist-container-body {
+      height: calc(100% - 22px);
+    }
+  
+    #node-config-input-exevariablelist-container {
+      list-style-type: none;
+      margin: 0;
+      overflow-x: hidden !important;
+      overflow-y: scroll !important;
+      height: 100%;
+    }
+  
+    #node-config-input-exevariablelist-container li {
+      padding: 0px !important;
+      display: flex;
+      width: 100%
+    }
+  
+    #node-config-input-exevariablelist-container li:hover {
+      background: #f3f3f3 !important;
+      cursor: pointer;
+    }
+  
+    #node-config-input-exevariablelist-container-widget {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      min-height: 150px;
+    }
+  
+    #node-config-input-exevariablelist-container-widget-header {
+      border-bottom: 1px solid #ccc;
+      padding: 2px 16px 2px 4px;
+      font-size: 0.9em;
+      display: flex;
+    }
+  
+    #node-config-input-filter {
+      height: 20px;
+      min-width: 20px;
+      line-height: 18px;
+      font-size: 10px;
+      border-radius: 2px;
+      padding: 0 5px;
+    }
+  
+    .variable-checkb {
+      flex: 0 0 auto;
+      width: 40px !important;
+    }
+  
+    .variable-name {
+      flex: 1 100%;
+      /* width:calc(100% - 260px); */
+  
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  
+    .variable-address {
+      flex: 0 0 auto;
+      width: 100px;
+    }
+  
+    .variable-type {
+      flex: 0 0 auto;
+      width: 120px;
+    }
+  
+    progress {
+      width: 100%;
+      height: 34px;
+      display: block;
+      /* Important Thing */
+      -webkit-appearance: none;
+      /* for mozilla */
+      /* background:transparent;
+        border-radius: 4px;*/
+    }
+  
+    @-moz-document url-prefix() {
+      progress {
+        width: 100%;
+        height: 30px;
+        display: block;
+        /* for mozilla */
+        background: transparent;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        padding: 1px;
+      }
+    }
+  
+    /* All good till now. Now we'll style the background */
+    progress::-webkit-progress-bar {
+      border-radius: 4px;
+      padding: 1px;
+      background: transparent;
+      border: 1px solid #ccc;
+    }
+  
+    progress::-moz-progress-bar {
+      border-radius: 4px;
+      background: #ccc;
+    }
+  
+    /* Now the value part */
+    progress::-webkit-progress-value {
+      border-radius: 4px;
+      background: #ccc;
+    }
+  
+    /* Height fix for select2 */
+    .select2-container .select2-selection--single,
+    .select2-container--default .select2-selection--single .select2-selection__rendered,
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 34px !important;
+    }
+  
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 34px !important;
+    }
+  </style>
+  <div class="form-row">
+    <label for="node-config-input-name" style="width:60px;"><i style="width:14px;" class="icon-tag"></i> Name</label>
+    <input type="text" style="width: calc(100% - 65px);" id="node-config-input-name" required placeholder="a-z,A-Z,0-9,_"
+      pattern="[0-9A-Za-z_]+">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-exefolder" style="width:60px;"><i style="width:14px;" class="fa fa-sitemap"></i>
+      Folder</label>
+    <input type="text" required placeholder="/Users/myname/exefolder" style="width: calc(100% - 65px);"
+      id="node-config-input-exefolder" list="exefolder-list">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-exefile" style="width:60px;"><i style="width:14px;" class="fa fa-file"></i> File</label>
+    <div style="width:calc(100% - 65px); display: inline-block; vertical-align:middle;">
+      <select type="text" id="node-config-input-exefile" style="width:100%;">
+        <option value="" selected disabled>Select a file ...</option>
+      </select>
+      <div id="progress-container" style="position:relative;display:none;">
+        <span style="position: absolute;font-size: 14px; padding: 8px 9px;"><span id="span-progress-file"></span> parsing
+          (<span id="span-progress-value">0</span>%) ...</span>
+        <progress id="node-config-progress-bar" value="0" max="100"></progress>
+      </div>
+    </div>
+  </div>
+  <div class="form-row">
+    <input type="checkbox" style="display: inline-block; width: 14px; vertical-align:top;" id="node-config-input-expand">
+    <label for="node-config-input-expand" style="width:auto;"> Expand Variable List</label>
+  </div>
+  <div class="form-row node-input-exevariable-container-row">
+    <label for="node-config-input-exevariablelist-container"><i style="width:14px;" class="fa fa-list"></i> Variable
+      List</label>
+    <div id="node-config-input-exevariablelist-container-widget" style="height: 250px; min-width:420px">
+      <div style='padding:0px;' id='node-config-input-exevariablelist-container-widget-header'>
+        <div href='#' style='width:40px;'><a id='node-input-link-select-label' href='#'><span>Select</span></a></div>
+        <div style='width:calc(100% - 280px);'><a id='node-input-link-sort-name' href='#'
+            title='Sort by name'><span>Name</span> <i class='node-input-status-sort-name-a fa fa-sort-alpha-asc'></i><i
+              class='node-input-status-sort-name-d fa fa-sort-alpha-desc'></i></a></div>
+        <div style='width:100px;'><a id='node-input-link-sort-address' href='#' title='Sort by address'><span>Start
+              Address</span> <i class='node-input-status-sort-address-a fa fa-sort-numeric-asc'></i><i
+              class='node-input-status-sort-address-d fa fa-sort-numeric-desc'></i></a></div>
+        <div style='width:120px;'><a id='node-input-link-sort-type' href='#' title='Sort by type'><span>Type</span> <i
+              class='node-input-status-sort-type-a fa fa-sort-amount-asc'></i><i
+              class='node-input-status-sort-type-d fa fa-sort-amount-desc'></i></a></div>
+      </div>
+      <div id="node-config-input-exevariablelist-container-body">
+        <ol id="node-config-input-exevariablelist-container"></ol>
+      </div>
+    </div>
+    <div style="display:flex">
+      <button id="selectall-button" type="button" style="margin:4px 4px 0 0;" class="red-ui-button red-ui-button-small"><i
+          class="fa fa-check-square-o"></i> Select All</button><button id="deselectall-button" type="button"
+        style="margin:4px 4px 0 0;" class="red-ui-button red-ui-button-small"><i class="fa fa-square-o"></i> Deselect
+        All</button>
+      <label for="node-config-input-filter" style="width:auto; padding:0 0 0 100px;"><i style="width:14px;"
+          class="fa fa-filter"></i></label>
+      <input type="text" style="width:auto; flex-grow:1;margin: 4px 0 0 0;" id="node-config-input-filter"
+        placeholder="Filter on variable name">
+    </div>
+  </div>
+</script>
+<script type="text/x-red" data-help-name="exe-config">
+  <p>Configuration for an executable file.</p>
+  <p>This configuration node will allow to predefine a list of variables to be imported in variables nodes. 
+  This predefined list of variables is extracted from an executable file.
+  As it is a configuration node, the same configuration is available to  all variables nodes.</p>
+  <h3>Properties</h3>
+  <dl class="message-properties">
+    <dt>Folder<span class="property-type">string</span></dt>
+    <dd>The folder path located in the backend where to look for the list of executable files.
+    All the files with .elf, .out or .axf extension present in the defined folder will be listed. </dd>
+    <dt>File<span class="property-type">string</span></dt>
+    <dd>Allow to select a specific executable file among a list of files available in the selected folder. </dd>
+    <dt>Name<span class="property-type">string</span></dt>
+    <dd>the name of the configuration (selected variables) which will be available across all variables nodes </dd>
+    <dt>Expand Variable List<span class="property-type">boolean</span></dt>
+    <dd>Check box to expand to the full list of available variables in the executable file, or restrict the list of variables to first element of array and first level of structure.</dd>
+    <dd>To avoid "heap out of memory" exception, expanding very large arrays will be limited up to the first 10000 elements maximum. For instance, expanding an array[250000] will result in displaying the elements array[0] to array[9999].
+      For convenience reason, the last element array[2499999] is also displayed.</dd>
+    <dt>Variable List<span class="property-type">array</span></dt>
+    <dd>The list of imported variables from the executable file. Only the ones marked as checked will be imported in variables node. To ease the variables selection out of the table, it is also possible to sort by columns, filter, and (de)select all.</dd>
+  </dl><br>
+</script>
+
+<script type="text/javascript">
+  (function () {
+    let receivedList = []; // array representing the complete list of variables received from efl parser
+    let progressTimerId = null;
+    let request = null;
+    let previousHeight = 0;
+    let exeModifiedTime;
+
+
+    RED.nodes.registerType('exe-config', {
+      category: 'config',
+      defaults: {
+        name: { value: "", validate: function (v) { return (RED.validators.regex(/.*\S.*/)) } },
+        exefile: { value: "" },
+        exefolder: { value: "" },
+        exevariablelist: { value: [] },
+        expand: { value: false },
+        filename: { value: "" },
+        exeModifiedTime: { value: "" },
+        configLastUpdate: { value: "" }
+      },
+      label: function () {
+        return this.exefile.length > 0 ? `${this.name} (${this.filename})` : this.name;
+      },
+
+      oneditprepare: function () {
+        let filename = this.filename; // save filename on opening the edit panel for further comparison
+        let newFile = false; // boolean indicating if a new elf file has been selected or not. 
+        let displayedList = []; // array representing the subset of variables to be displayed after applying sort and/or filter on from receivedList. 
+        let first = true; // boolean to avoid ajax request of variables contained in the file during the building of the page.
+        let list = null; // list if the hyperList object
+        let node = this;
+        exeModifiedTime = this.exeModifiedTime;
+
+        // Build a predefined list of choices for exe path folder from the existing exe-config nodes present in variable nodes.
+        // Unfortunately it is not possible to retrieve all exe-config node, but only the ones selected in existing variable node.
+        const variablelist = RED.nodes.filterNodes({ type: "variables" }).filter(variable => variable.execonfig !== "");
+        let exeConfigList = variablelist.map(variable => RED.nodes.node(variable.execonfig).exefolder);
+        exeConfigList = Array.from(new Set(exeConfigList)); // remove duplicates elements from exeConfigList
+        let datalist = document.getElementById("exefolder-list");
+        // if datalist element not already created, then create one under body
+        if (!datalist) {
+          datalist = document.createElement("datalist");
+          datalist.id = "exefolder-list";
+          document.body.appendChild(datalist);
+        }
+        // remove existing options if any
+        while (datalist.firstChild) {
+          datalist.firstChild.remove();
+        }
+        // fill in the datalist with option based on exeConfigList array
+        exeConfigList.forEach(item => {
+          let option = document.createElement('option');
+          option.value = item;
+          datalist.appendChild(option);
+        });
+
+        // When folder path is empty (typically on new exe-config), set the default value to the the last entered value
+        // As it relies on window variable, the default value will be "" when the page is reload. 
+        if (window.exefolder !== undefined && this.exefolder === undefined) {
+          $("#node-config-input-exefolder").val(window.exefolder);
+        }
+
+        // array for correspondance between variable type value and string 
+        const typetab = ["Unsigned 8-bit", "Signed 8-bit",
+          "Unsigned 16-bit", "Signed 16-bit",
+          "Unsigned 32-bit", "Signed 32-bit",
+          "Unsigned 64-bit", "Signed 64-bit",
+          "Float", "Double"];
+
+        // object option for hyperList
+        const requiredOptions = {
+          itemHeight: 20,
+          generate(i) {
+            const line = document.createElement("li");
+            let checked = "";
+            const type = typetab[displayedList[i].type - 1];
+            if (displayedList[i].checked !== undefined) checked = displayedList[i].checked ? "checked" : "";
+            line.innerHTML = `<input type="checkbox" class="variable-checkb" ${checked}><div class="variable-name">${displayedList[i].name}</div><div class="variable-address">${displayedList[i].address}</div><div class="variable-type">${type}</div>`;
+            line.addEventListener("click", (e) => {
+              const checkb = line.querySelector(".variable-checkb");
+              if (e.target.className !== "variable-checkb") {
+                e.preventDefault();
+                checkb.checked = !checkb.checked;
+                displayedList[i].checked = checkb.checked;
+              } else {
+                displayedList[i].checked = checkb.checked;
+              }
+            });
+            return line;
+          },
+        }
+
+        // function to click all currently displayed checkbox 
+        const clickAllCb = function (value) {
+          for (let i = 0; i < displayedList.length; i++) {
+            displayedList[i].checked = value;
+          }
+          list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+        }
+
+        // function to request the list of variable to elf parser, update internal array of variables, and update the DOM through hyperList object. 
+        const getVariables = function (selectedfile, expand) {
+
+          // Reset timer (this case occurs when the user requests a new elf parsing whereas the current elf parsing is not completed)
+          if (progressTimerId) {
+            progressTimerId = clearInterval(progressTimerId);
+          }
+          // Prepare the progress status bar 
+          $('#node-config-input-exefile').next(".select2-container").hide();
+          $("#progress-container").show();
+          // Init progress status to 0%
+          $("#node-config-progress-bar").val(0);
+          $("#span-progress-file").text($("#node-config-input-exefile option:selected").text());
+
+          // Request the elf parsing progress each 100 ms
+          progressTimerId = window.setInterval(() => {
+            getElfParsingProgress();
+          }, 100);
+
+          // Finally perform the actual parsing request to back end
+          request = $.ajax({
+            url: "getvariables",
+            type: "POST",
+            data: { id: selectedfile, exp: expand },
+            success: function (resp) {
+              // Reset progress timer
+              if (progressTimerId) {
+                clearInterval(progressTimerId);
+                progressTimerId = null;
+              }
+              // Set the progress status to 100%
+              $("#node-config-progress-bar").val(100);
+              // Get last modified time of elf file
+              exeModifiedTime = resp.exeModifiedTime;
+
+              // keep current list in memory to set back checkbox value in case of getVariables triggered by expand
+              let oldvarlist = displayedList;
+              const nodeList = $("#node-config-input-exevariablelist-container");
+              let currentSort = nodeList.data('currentSort');
+              let currentSortOrder = nodeList.data('currentSortOrder');
+              currentSortOrder = (currentSortOrder === 'a' ? 'd' : 'a');
+              nodeList.data('currentSortOrder', currentSortOrder);
+              // clear previous variable list from the DOM ...
+              document.getElementById("node-config-input-exevariablelist-container").innerHTML = "";
+              // if getVariables has been triggered by expanding an already selected file, update resp.list with "checked" information from oldvarlist 
+              if (!newFile) {
+                for (let index = 0; index < oldvarlist.length; index++) {
+                  let i = resp.list.findIndex(function (element) {
+                    return (element.name === oldvarlist[index].name)
+                  })
+                  if (i > -1) resp.list[i].checked = oldvarlist[index].checked;
+                }
+              }
+              newFile = false;
+              // finally update the DOM with the new list of variables
+              // Apply a filter on receivedList to delete the 64-bit variables not yet supported.
+              // Also filter variable with unknown type
+              receivedList = resp.list.filter(function (obj) {
+                return (obj.type !== -1 && obj.type !== typetab.indexOf("Unsigned 64-bit") + 1 && obj.type !== typetab.indexOf("Signed 64-bit") + 1);
+              });
+              displayedList = receivedList;
+              sortNodeList(currentSort);
+              // apply filter on displayedList if filter value not empty 
+              const filterValue = document.getElementById("node-config-input-filter").value;
+              if (filterValue && filterValue.length > 0) {
+                displayedList = displayedList.filter(function (elem) {
+                  return elem.name.includes(filterValue);
+                });
+              }
+              requiredOptions.total = displayedList.length;
+              if (list) {
+                list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+              } else {
+                list = HyperList.create(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+              }
+              $("#progress-container").hide();
+              $('#node-config-input-exefile').next(".select2-container").show();
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+              // Reset progress timer
+              if (progressTimerId) {
+                clearInterval(progressTimerId);
+                progressTimerId = null;
+              }
+              request = null;
+              $('#node-config-input-exefile').show();
+              $("#progress-container").hide();
+              switch (jqXHR.status) {
+                case 0:
+                  RED.notify(node._("Parsing stopped !"), "warning");
+                  break;
+                case 404:
+                  RED.notify(node._("File not found !", "file"), "error");
+                  break;
+                case 500:
+                  RED.notify(node._("Executable file structure corrupted !", "efl"), "error");
+                  break;
+                default:
+                  RED.notify(node._("Unexpected error"), "error");
+                  break;
+              }
+            }
+          });
+        }
+
+
+        function getElfParsingProgress() {
+          $.ajax({
+            url: "getElfParsingProgress",
+            type: "GET",
+            data: {},
+            success: function (resp) {
+              $("#node-config-progress-bar").val(resp);
+              $("#span-progress-value").text(resp);
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+              RED.notify(node._("Unexpected error"), "error");
+            }
+          });
+        }
+
+        //  debouncing function
+        const debounce = function (func, wait, immediate) {
+          let timeout;
+          return function () {
+            let context = this, args = arguments;
+            let later = function () {
+              timeout = null;
+              if (!immediate) func.apply(context, args);
+            };
+            let callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+          };
+        };
+
+        // debounced filtering function 
+        const filter = debounce(function (e) {
+          const filterValue = document.getElementById("node-config-input-filter").value.toLowerCase();
+          displayedList = receivedList.filter(function (elem) {
+            return elem.name.toLowerCase().includes(filterValue);
+          });
+          requiredOptions.total = displayedList.length;
+          if (list) {
+            list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+          }
+        }, 500);
+
+        // generic function to apply various sort on the array of variables 
+        const sortNodeList = function (sortOn) {
+          const nodeList = $("#node-config-input-exevariablelist-container");
+          let currentSort = nodeList.data('currentSort');
+          let currentSortOrder = nodeList.data('currentSortOrder');
+
+          if (!currentSort) {
+            currentSort = sortOn;
+            currentSortOrder = 'a';
+          } else {
+            if (currentSort === sortOn) {
+              currentSortOrder = (currentSortOrder === 'a' ? 'd' : 'a');
+            } else {
+              currentSortOrder = 'a';
+            }
+            currentSort = sortOn;
+          }
+          nodeList.data('currentSort', currentSort);
+          nodeList.data('currentSortOrder', currentSortOrder);
+
+          $("#node-config-input-exevariablelist-container-widget-header .fa").hide();
+          $(".node-input-status-sort-" + currentSort + "-" + currentSortOrder).show();
+
+          displayedList = receivedList.sort(function (dataA, dataB) {
+            let labelA, labelB;
+            switch (currentSort) {
+              case 'name':
+                labelA = dataA.name.toLowerCase();
+                labelB = dataB.name.toLowerCase();
+                break;
+              case 'address':
+                labelA = Number(dataA.address);
+                labelB = Number(dataB.address);
+                break;
+              case 'type':
+                labelA = dataA.type;
+                labelB = dataB.type;
+                break;
+              case 'select':
+                labelA = !dataA.checked || false;
+                labelB = !dataB.checked || false;
+                break;
+              default:
+                return 0;
+                break;
+            }
+            if (labelA < labelB) { return currentSortOrder === 'a' ? -1 : 1; }
+            if (labelA > labelB) { return currentSortOrder === 'a' ? 1 : -1; }
+            return 0;
+          });
+
+          // apply filter on sorting result if filter value not empty 
+          const filterValue = document.getElementById("node-config-input-filter").value.toLowerCase();
+          if (filterValue && filterValue.length > 0) {
+            displayedList = displayedList.filter(function (elem) {
+              return elem.name.toLowerCase().includes(filterValue);
+            });
+          }
+          if (list) {
+            requiredOptions.total = displayedList.length;
+            list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+          }
+        }
+
+        if (this.filename) {
+          $("#node-config-input-exefile").append('<option value="' + this.exefile + '"selected>' + this.filename + '</option>')
+        } else {
+          first = false;
+        }
+
+        $("#node-config-dialog-ok").button("option", "disabled", true);
+
+        $("#node-config-input-exefile").select2({
+          placeholder: "Select a file ...",
+          minimumResultsForSearch: -1,
+          ajax: {
+            url: "listfiles",
+            type: "POST",
+            data: function () {
+              return {
+                folderpath: $("#node-config-input-exefolder").val()
+              };
+            },
+            processResults: function (resp) {
+              let reset = true;
+              var data = $.map(resp, function (obj) {
+                obj.id = obj.id || obj.filePath;
+                obj.text = obj.text || obj.name;
+                if (obj.id == $("#node-config-input-exefile").val()) reset = false;
+                return obj;
+              });
+              if (reset) {
+                $("#node-config-input-exefile").val(null).trigger("change");
+              }
+              return { results: data };
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+              RED.notify(node._(jqXHR.responseText), "error");
+              $("#node-config-input-exefile").val(null).trigger("change");
+              return;
+            }
+          }
+        });
+
+        $("#node-config-input-exefile").change(function (e) {
+          const expand = document.getElementById("node-config-input-expand").checked;
+          const selectedfile = $(this).val();
+          if (selectedfile) {
+            if ($("#node-config-input-name").val() && $("#node-config-input-exefile").val()) $("#node-config-dialog-ok").button("option", "disabled", false);
+            if (!first) {
+              newFile = true;
+              getVariables(selectedfile, expand);
+            }
+          } else {
+            $("#node-config-dialog-ok").button("option", "disabled", true);
+          }
+        });
+
+        $("#node-config-input-name").on("input", function (e) {
+          if ($(this).val().length > 0 && $("#node-config-input-exefile").val() && $("#node-config-input-exefolder").val()) {
+            $("#node-config-dialog-ok").button("option", "disabled", false);
+          } else {
+            $("#node-config-dialog-ok").button("option", "disabled", true);
+          }
+        });
+
+        $("#node-config-input-exefolder").on("input", function (e) {
+          if ($(this).val().length > 0 && $("#node-config-input-exefile").val() && $("#node-config-input-name").val()) {
+            $("#node-config-dialog-ok").button("option", "disabled", false);
+          } else {
+            $("#node-config-dialog-ok").button("option", "disabled", true);
+          }
+        });
+
+        $("#node-config-input-expand").change(function (e) {
+          const expand = document.getElementById("node-config-input-expand").checked;
+          const selectedfile = $("#node-config-input-exefile").val();
+          if (selectedfile && selectedfile.length > 0) {
+            if (!first) {
+              getVariables(selectedfile, expand)
+            } else {
+              first = false;
+            }
+          }
+        });
+
+        $("#node-config-input-filter").on("input", filter);
+
+        $("#node-input-link-sort-name").click(function (e) {
+          e.preventDefault();
+          sortNodeList('name');
+        });
+
+        $("#node-input-link-sort-address").click(function (e) {
+          e.preventDefault();
+          sortNodeList('address');
+        });
+
+        $("#node-input-link-sort-type").click(function (e) {
+          e.preventDefault();
+          sortNodeList('type');
+        });
+
+        $("#node-input-link-select-label").click(function (e) {
+          e.preventDefault();
+          sortNodeList('select');
+        });
+
+        $("#selectall-button").click(function (e) {
+          e.preventDefault();
+          clickAllCb(true);
+        });
+
+        $("#deselectall-button").click(function (e) {
+          e.preventDefault();
+          clickAllCb(false);
+        });
+
+        if (this.exevariablelist && this.exevariablelist.length > 0) {
+          requiredOptions.total = this.exevariablelist.length;
+          receivedList = this.exevariablelist.map(x => Object.assign({}, x));
+          displayedList = this.exevariablelist.map(x => Object.assign({}, x));
+          if (list) {
+            list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+          } else {
+            list = HyperList.create(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+          }
+        }
+
+        sortNodeList("name");
+
+        this.resize = _ => {
+          if (list != null) {
+            list.refresh(document.querySelector('#node-config-input-exevariablelist-container'), requiredOptions);
+          }
+        }
+
+        const expand = document.getElementById("node-config-input-expand").checked;
+        const selectedfile = $("#node-config-input-exefile").val();
+        if (selectedfile && selectedfile.length > 0) {
+          request = $.ajax({
+            url: "getstat",
+            type: "POST",
+            data: { id: selectedfile },
+            success: function (resp) {
+              if (resp.exeTime != exeModifiedTime) {
+                newFile = false;
+                RED.notify(node._("The variable list has been updated because the executable file ''" + selectedfile + " 'has changed."));
+                getVariables(selectedfile, expand);
+              }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+              RED.notify(node._("Unexpected error"), "error");
+            }
+          })
+        }
+      },
+      oneditsave: function () {
+        // stop ongoing exe file parsing 
+        if (request != null) {
+          request.abort();
+          request = null;
+        }
+        if (progressTimerId != null) {
+          clearInterval(progressTimerId);
+          progressTimerId = null;
+        }
+        this.exevariablelist = receivedList.map(x => Object.assign({}, x));
+        this.filename = $("#node-config-input-exefile :selected").text();
+        this.exeModifiedTime = exeModifiedTime;
+        this.configLastUpdate = Date.now();
+        previousHeight = 0;
+        window.exefolder = $("#node-config-input-exefolder").val();
+      },
+
+      oneditcancel: function () {
+        // stop ongoing exe file parsing 
+        if (request != null) {
+          request.abort();
+          request = null;
+        }
+        if (progressTimerId != null) {
+          clearInterval(progressTimerId);
+          progressTimerId = null;
+        }
+        previousHeight = 0;
+      },
+      oneditresize: function (size) {
+        const rows = $("#node-config-dialog-edit-form>div:not(.node-input-exevariable-container-row)");
+        let height = size.height;
+        for (let i = 0; i < rows.size(); i++) {
+          height -= $(rows[i]).outerHeight(true);
+        }
+        const editorRow = $("#node-config-dialog-edit-form>div.node-input-exevariable-container-row");
+        height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")) + 22 + 12);
+        $("#node-config-input-exevariablelist-container-widget").height(height);
+
+        if (previousHeight !== size.height) {
+          this.resize();
+          previousHeight = size.height;
+        }
+      }
+    });
+  })();
+</script>
+<!-- #endregion exe-config -->
+
+<!-- #region variables -->
+<script type="text/x-red" data-template-name="variables">
+  <style>
+    #executable>div {
+      width: calc(100% - 140px) !important;
+    }
+  
+    #node-input-snapshotheader:invalid,
+    #node-input-triggerthreshold:invalid {
+      border-color: #e9322d;
+      -webkit-box-shadow: 0 0 6px #f8b9b7;
+      -moz-box-shadow: 0 0 6px #f8b9b7;
+      box-shadow: 0 0 6px #f8b9b7;
+      color: #b94a48;
+    }
+
+    #node-input-snapshotheader:disabled, 
+    #node-input-triggername:disabled,
+    #node-input-triggerthreshold:disabled {
+      color: var(--nr-db-disabled-text) !important;
+    }
+
+    #node-input-variablelist-container>li.red-ui-editableList-item-removable {
+      padding: 1px 0px !important;
+    }
+
+    #node-input-variablelist-container>li.red-ui-editableList-item-removable>.red-ui-editableList-item-content {
+      margin-right:5px!important;
+    }
+  </style>
+  <div class="form-row">
+    <label for="node-input-groupname" style="width: 135px;"><i class="icon-tag"></i> Group Name</label>
+    <input type="text" id="node-input-groupname" placeholder="Group_1" style="width:calc(100% - 140px);">
+  </div>
+  <div class="form-row">
+    <label for="node-input-accesspoint" style="width: 135px;"><i class="fa fa-cog"></i> Access port</label>
+    <input type="number" id="node-input-accesspoint" style="width:calc(100% - 140px);">
+  </div>
+  <div class="form-row" id="executable">
+    <label for="node-input-execonfig" style="width: 135px;"><i class="fa fa-file-text-o"></i> Executable</label>
+    <input type="text" id="node-input-execonfig">
+  </div>
+  <div class="form-row node-input-variablelist-container-row">
+    <label for="node-input-variablelist-container"><i class="fa fa-list"></i> Variable list</label>
+    <ol id="node-input-variablelist-container"></ol>
+    <div style="display:flex">
+      <button id="new-variable" type="button" style="margin:4px 4px 0 0;" class="red-ui-button red-ui-button-small"><i class="fa fa-plus"></i> Add custom variable</button>
+      <button id="clear-list" type="button" style="margin:4px 4px 0 0;" class="red-ui-button red-ui-button-small"><i class="fa fa-minus"></i> Remove all custom variables</button>
+    </div>
+  </div>
+  <div id="acquisition-parameters">
+    <div class="red-ui-palette-header">
+      <i class="fa fa-angle-down expanded"></i><span>Acquisition parameters</span>
+    </div>
+    <div class="section-content" style="padding: 10px 0px 0px 10px; display: block;">
+      <div class="form-row">
+        <label style="width:135px;" for="node-input-frequency"><i class="fa fa-bolt"></i> Sampling frequency </label>
+        <input style="width:calc(100% - 140px);" type="text" id="node-input-frequency">
+        <input type="hidden" id="node-input-frequencyType">
+      </div>
+      <div class="form-row">
+        <label style="width:135px;" for="node-input-snapshotheader"><i class="fa fa-dot-circle-o"></i> Acquisition mode </label>
+        <input style="width:calc(100% - 140px);" type="text" id="node-input-snapshotheader">
+        <input type="hidden" id="node-input-mode">
+      </div>
+      <div class="form-row">
+        <label for="node-input-triggerstartmode" style="width: 135px;"><i class="fa fa-play-circle-o"></i> Trigger start mode</label>
+        <select type="text" id="node-input-triggerstartmode" style="width:calc(100% - 140px);">
+          <option value="manual">off</option>
+          <option value="rising-edge">rising edge</option>
+          <option value="falling-edge">falling edge</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label style="width:135px;" for="node-input-triggername"><i class="fa fa-at"></i> Trigger name </label>
+        <select type="text" id="node-input-triggername" style="width:calc(100% - 140px);">
+          <option selected disabled hidden> Variable list is empty </option> 
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="node-input-triggerthreshold" style="width: 135px;"><i class="fa fa-random"></i> Trigger
+          threshold</label>
+        <input type="text" id="node-input-triggerthreshold" value="0" pattern="^[-]{0,1}\d+[.]{0,1}\d+|\d$" style="width:calc(100% - 140px);">
+      </div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="variables">
+  <p>Allow to configure a variables group holding a set of variables and few additional parameters useful for the
+    communication with the target.</p><br>
+  <h3>Properties</h3>
+  <dl class="message-properties">
+    <dt>Group Name<span class="property-type">string</span></dt>
+    <dd>The group name must be unique across all the variables nodes.</dd>
+    <dt>Access port<span class="property-type">number</span></dt>
+    <dd>The access port number of STM32 core for which the group of variables applied. The default value is 0.</dd>
+    <dt class="optional">Executable<span class="property-type">exe-config</span></dt>
+    <dd>This optional property allows to select or define a new exe-config node. Once selected or defined, the variables
+      selected in exe-config node are automatically added in the Variable list. Changing the selection from one config 
+      to another will automatically remove previous added variables coming from the exe-config from the Variable list and 
+      add the new ones from the new configuration. Of course, if "Add new exe-config ..." option is selected then no new variable 
+      is added, but the variables from previous selection will be removed from the list. 
+      As the exe-config node is a configuration node, the various exe-config configurations are shared across all variables nodes.</dd>
+    <dt class="optional">Variable list <span class="property-type">array</span></dt>
+    <dd>
+      The Variable list summarizes the list of variables in the scope of this "variables" group node. It can filled by either selecting 
+      an Executable configuration (refer above) or by manually adding some custom variables by using 
+      <img src="images/NewVariable.png" alt="New Variable"> button.
+      A variable is defined by its name (unique string), its base address (in hexadecimal), and its type (one of
+      <code>Unsigned 8-bit</code>,
+      <code>Signed 8-bit</code>, <code>Unsigned 16-bit</code>, <code>Signed 16-bit</code>, <code>Unsigned 32-bit</code>,
+      <code>Signed 32-bit</code>, <code>Float</code>, <code>Double</code>).<br>
+      As the variable name must be unique, in case several variables with the same name have been entered or imported in this
+      list, only the first one is kept when the configuration panel is validated (when the Done button is hit).<br>
+      It is possible to delete the custom variable individually from the list by using the <img src="images/DeleteButton.png" alt="Delete variables"> 
+      button or all in a row by hitting the <img src="images/ClearList.png" alt="Remove custom variables"> button.
+    </dd>
+    <dt class="optional">Sampling frequency <span class="property-type">string</span></dt>
+    <dd>Defines the frequency at which the variables are read-out from the memory target.
+      <ul>
+        <li>
+          <code>sequential loop </code> to perform the acquisition as fast as possible (best effort)
+        </li>
+        <li>
+          <code>0.1Hz </code>
+        </li>
+        <li>
+          <code>1Hz </code>
+        </li>
+        <li>
+          <code>10Hz </code>
+        </li>
+        <li>
+          <code>100Hz </code>
+        </li>
+        <li>
+          <code>1000Hz </code>
+        </li>
+        <li>
+          <code>Custom (in Hz): </code> to perform the acquisition at a specified frequency not present in predefined list (must be higher than 0) 
+        </li>
+      </ul>
+    </dd>
+    <dt class="optional">Acquisition mode <span class="property-type">string</span></dt>
+    <dd>The acquisition (i.e. reading the variables in memory target) can be done in 2 different modes:
+      <ul>
+        <li>
+          <code>direct</code> mode is a non-intrusive way to read-out data from memory-mapped areas into the target memory
+          space, by using the JTAG or SWD protocols.
+          However, due to the intrinsic latency between two memory accesses using those protocols, it is not possible to
+          guarantee a time-synchronization between the values of different target memory areas.
+        </li>
+        <li>
+          <code>snapshot - Header address</code> The snapshot mode is an intrusive way to read-out data from memory-mapped areas into the target memory
+          space in a time-synchronized way, by involving the target processor itself through a dedicated interrupt-driven target firmware block called
+          “Snapshot FW”. This Snapshot FW (provided by STMicroelectronics) has to be added to the target FW and
+          mapped to an interruption used for communication purposes with the Host machine. In this mode, the Snapshot FW
+          is informed by the Host machine of a list of memory areas to be sampled at once (hence the “Snapshot” name)
+          and copied into a dedicated buffer. When Snapshot FW is ready, this buffer is then read-out from the target into
+          the Host machine by using the regular JTAG or SWD protocols, and the different memory values are extracted
+          from it.
+          <ul>
+            <li><code>Header address</code> This field specifies the start address of “g_traceHeader” variable in the Snapshot FW (address of “g_traceHeader.startMark[0]”). 
+              The address can be found in the application map file, or obtain it by pressing the "import from executable" button.
+              A popup message "[SNAPSHOT MODE] : Default Start Header Address not present in executable configuration. Please select another 
+              configuration or change to Direct acquisition mode." appears when the executable file doesn't contain the "g_traceHeader.startMark[0]" variable name.</li>
+          </ul>
+        </li>
+      </ul>
+    </dd>
+    <dt class="optional">Trigger start mode <span class="property-type">string</span></dt>
+    <dd>The acquisition triggerring is settable in direct mode as in snapshot mode. Nevetheless, the snapshot mode needs adding the acqTrigger source code in the embeded part.
+        <ul>
+            <li>
+              <code>off</code> The acquisition starts immediately after pressing the start button.
+            </li>
+            <li>
+              <code>rising edge</code> The acquisition starts when a sequence of two consecutive records is
+              found where:
+              <ul>
+              <li>In the first record, the trigger value is strictly below a specified threshold.</li>
+              <li>In the second record, the trigger value is equal or greater than the specified
+              threshold.</li>
+              </ul>
+            </li>
+            <li>
+                <code>falling edge</code> the acquisition starts when a sequence of two consecutive records is
+                found where:
+                <ul> 
+                  <li>In the first record, the trigger value is strictly greater than a specified threshold.</li>
+                  <li>In the second record, the trigger value is equal or lower than the specified threshold.</li>
+                </ul>
+              </li>
+          </ul>
+    </dd>
+    <dt class="optional">Trigger name <span class="property-type">string</span></dt>
+    <dd>Selection of the trigger, the list of triggers is from the variable list.
+    </dd>
+    <dt class="optional">Trigger threshold <span class="property-type">string</span></dt>
+    <dd>Fill with the value of the threshold level according to the type of variable selected.
+    </dd>
+  </dl><br>
+  <h3>Input</h3>
+  <p>Each input msg will generate a msg to be send-out by the variables node. Although there is no specific requirement on
+    input msg, the <code>topic</code> might be used:</p>
+  <dl class="message-properties">
+    <dt>topic<span class="property-type">string</span></dt>
+    <dd>If present, the <code>topic</code> is transmitted as is on output msg <code>topic</code>. Usually, the
+      <code>topic</code>
+      holds an action to be passed to Acquisition out node. Please refer to Acquisition out node for a comprehensive
+      list of possible actions.</dd>
+  </dl><br>
+  <h3>Outputs</h3>
+  <p>Two outputs are defined, one port labelled data for the measurement and one labelled error.</p>
+  <p>The error output is used to inform user of errors or changes in the configuration. The <code>msg.topic</code> defines the error title, the <code>msg.payload</code> is a string with information.<p>
+  <p>The output <code>msg</code> object holds:</p>
+  <dl class="message-properties">
+    <dt>topic<span class="property-type">string</span></dt>
+    <dd>The <code>topic</code> is set to the value found in incoming <code>topic</code> msg. Usually it holds an action
+      to be passed to Acquisition out node. Please refer to Acquisition out node for a comprehensive list of possible
+      actions.</dd>
+    <dt>payload<span class="property-type">object</span></dt>
+    <dd>The <code>payload</code> is an object representing the variables group configuration define by this node
+      properties. The payload
+      object holds several properties summarizing what have been set in the configuration panel.
+      <ul>
+        <li><code>groupname</code> string</li>
+        <li><code>variablelist</code> array of variable</li>
+        <li><code>mode</code> string </li>
+        <li><code>snapshotheader</code> string </li>
+        <li><code>frequency</code> number (0 for sequential loop)</li>
+        <li><code>accesspoint</code> number (access port)</li>
+      </ul>
+    </dd>
+  
+  </dl>
+  <p>The following example shows an output <code>msg</code> for a variables nodes named group1 which contains 3 variables
+    to read out at 100Hz on access port 0 in direct mode:</p>
+  <pre>
+      {
+        "topic":"START",
+        "payload":
+        {
+          "groupname":"group1",
+          "variablelist":
+            [
+              {"name":"myvar","imported": "false","address":"0x08888888","type":7},
+              {"name":"counterU8","imported": "true","address":"0x20000090","type":1},
+              {"name":"counterS8","imported": "true","address":"0x20000091","type":2}
+            ],
+          "mode":"direct",
+          "snapshotheader":"0x200008c4",
+          "frequency":100,
+          "accesspoint":0
+        }
+      }
+  </pre><br>
+  <h3>Details</h3>
+  <p>The variable node is designed to be typically : </p>
+  <ul>
+    <li>front linked with an inject node or a button in which the topic has been optionally set</li>
+    <li>back linked with either an acquisition out node or a write node</li>
+  </ul>
+  <img src="images/Variables.png" alt="basic flow for variables node">
+</script>
+
+<script type="text/javascript">
+  let lastImportedTime = -1;
+  let openStatus = false;
+  RED.nodes.registerType('variables', {
+    category: "STMicroelectronics",
+    color: '#3cb4e6',
+    defaults: {
+      groupname: {
+        value: "",
+        required: true,
+        validate: function (v) {
+          let that = this;
+          let candidates = RED.nodes.filterNodes({ type: "variables" });
+          let trouve = candidates.findIndex(function (e) {
+            return (e.groupname == v && e.id !== that.id);
+          })
+          return (trouve == -1);
+        }
+      },
+      accesspoint: { value: 0, required: true, validate: function (v) { return (RED.validators.number(v) && (v >= 0)) } },
+      execonfig: { value: "", type: "exe-config", required: false },
+      variablelist: {
+        value: [],
+        required: false
+      },
+      triggerstartmode: { value: "manual" },
+      triggername: { value: "" },
+      triggerthreshold: { value: "" },
+      frequency: { validate: RED.validators.regex(/^[0-9]*(\.[0-9]+)?$/) },
+      frequencyType: { value: "0" },
+      snapshotheader: {
+        validate: function (v) {
+          let mode = document.getElementById("node-input-mode") ? document.getElementById("node-input-mode").value : this.mode;
+          return mode === "snapshot" ? /^0x[0-9A-Fa-f]{8}$/.test(v) : true;
+        }
+      },
+      mode: { value: "direct" },
+      lastImportedTime: { value: -1 },
+      openStatus: { value: false }
+    },
+    inputs: 1,
+    outputs: 2,
+    outputLabels: ["data","error"],
+    icon: "debug.png",
+    label: function () {
+      return this.groupname || "variables";
+    },
+    labelStyle: function () {
+      return this.groupname ? "node_label_italic" : "";
+    },
+    oneditprepare: function () {
+      let node = this;
+      let execonfig = this.execonfig; // represents the current exe-config node selected
+      lastImportedTime = this.lastImportedTime; // represents the time at which the latest ex-config has been imported
+      openStatus = this.openStatus;
+      const REGEXMAP = {
+        1: '^[0-9]+$',
+        2: '^[-]{0,1}[0-9]+$',
+        3: '^[0-9]+$',
+        4: '^[-]{0,1}[0-9]+$',
+        5: '^[0-9]+$',
+        6: '^[-]{0,1}[0-9]+$',
+        7: '^[0-9]+$',
+        8: '^[-]{0,1}[0-9]+$',
+        9: '^[-]{0,1}[0-9]+[.]{0,1}[0-9]+|[0-9]$',
+        10: '^[-]{0,1}[0-9]+[.]{0,1}[0-9]+|[0-9]$'
+      };
+
+      function importConfig() {
+        let val = ($("#node-input-execonfig option:selected").val());
+        let triggerSelected = $("#node-input-triggername option:selected").val();
+        let allItems = document.querySelectorAll("#node-input-variablelist-container .red-ui-editableList-item-removable");
+        // first, remove all old imported variables
+        Array.from(allItems).forEach(function (elem) {
+          if (elem.querySelector(".node-input-variable-name") && elem.querySelector(".node-input-variable-name").dataset.checked === "true") {
+            elem.parentNode.removeChild(elem);
+            $('#node-input-triggername option[value="' + elem.querySelector(".node-input-variable-name").value + '"]').remove();
+          }
+        });
+
+        execonfig = val;
+
+        if (val === "_ADD_") {
+          // No exe-config to import
+          $(".red-ui-typedInput-container div.red-ui-typedInput-input-wrap .red-ui-typedInput-input:last").attr('disabled', false);
+          if (allItems === null) {
+            // the variable list is empty (no exe-config and no manual variable) 
+            clearTriggerList();
+          } else if (triggerSelected !== $("#node-input-triggername option:selected").val()) {
+            // only the manual variables are remaining, but the trigger was set on an imported variable, so need to reset the trigger and associated threshold type
+            // to the first variable in the list
+            document.getElementById("node-input-triggername").options[0].selected = true;
+            let typeFirstImported = document.querySelector("#node-input-variablelist-container .red-ui-editableList-item-removable .node-input-variable-type").value;
+            document.getElementById("node-input-triggerthreshold").pattern = REGEXMAP[typeFirstImported];
+          }
+          return;
+        }
+        $(".red-ui-typedInput-container div.red-ui-typedInput-input-wrap .red-ui-typedInput-input:last").attr('disabled', true);
+        // Update the variable list with variable from the exe-config 
+        let imported = RED.nodes.node(val).exevariablelist.filter(elem => elem.checked);
+        imported.forEach(function (elem, index) {
+          // Remove from previous variable list any variable having same name as the ones from exe-config 
+          allItems = document.querySelectorAll("#node-input-variablelist-container .red-ui-editableList-item-removable");
+          Array.from(allItems).forEach(function (i) {
+            if (i.querySelector(".node-input-variable-name") && i.querySelector(".node-input-variable-name").value === elem.name) {
+              i.parentNode.removeChild(i);
+            }
+          });
+
+          // Add the new imported variable in the variable list
+          $('#node-input-variablelist-container').editableList('addItem', elem);
+          // Add the new imported variable in the list of triggername 
+          document.getElementById("node-input-triggername").add(new Option(elem.name, elem.name), index);
+          if (triggerSelected === elem.name) {
+            $('#node-input-triggername').val(triggerSelected);
+            let thresholdDiv = document.getElementById("node-input-triggerthreshold");
+            thresholdDiv.pattern = REGEXMAP[elem.type];
+          }
+        });
+
+        // Previous triggername no more present in the triggername list, select the first variable from trigger option,
+        // then setting pattern to the type of first imported variable
+        allItems = document.querySelectorAll("#node-input-variablelist-container .red-ui-editableList-item-removable");
+        if (allItems.length > 0 && (triggerSelected === "Variable list is empty" || triggerSelected !== $("#node-input-triggername option:selected").val())) {
+          document.getElementById("node-input-triggername").options[0].selected = true;
+          let typeFirstImported = imported[0] && imported[0].type ? imported[0].type : 0;
+          document.getElementById("node-input-triggerthreshold").pattern = REGEXMAP[typeFirstImported];
+        } else if (allItems.length === 0){
+          clearTriggerList();
+        }
+
+        lastImportedTime = Date.now();
+
+        //Find the address of the traceHeader
+        let importedAddrHeader = RED.nodes.node(val).exevariablelist.filter((elem) => elem.name === "g_traceHeader.startMark[0]");
+        window.headerAddress = importedAddrHeader.length == 0 ? "" : importedAddrHeader[0].address;
+        if ($("#node-input-snapshotheader").typedInput('type') === "snapshot") {
+          $("#node-input-snapshotheader").typedInput('value', window.headerAddress);
+          $("#node-input-snapshotheader").typedInput('validate');
+        }
+      }
+
+      function clearTriggerList() {
+        $('#node-input-triggername')
+          .find('option')
+          .remove()
+          .end()
+          .append('<option selected disabled hidden> Variable list is empty </option>');
+      }
+
+      function resizeList() {
+        const rows = $("#dialog-form>div:not(.node-input-variablelist-container-row):visible");
+        let height = $("#dialog-form").height();
+        for (let i = 0; i < rows.size(); i++) {
+          height -= $(rows[i]).outerHeight(true);
+        }
+        const editorRow = $("#dialog-form>div.node-input-variablelist-container-row");
+        height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom"))) + 42;
+        $("#node-input-variablelist-container").editableList('height', height);
+      }
+
+      // custom type in statistic sheet
+      $('#node-input-frequency').typedInput({
+        default: '0',
+        typeField: "#node-input-frequencyType",
+        types: [
+          {
+            value: "0",
+            label: "sequential loop",
+            hasValue: false
+          },
+          {
+            value: "0.1",
+            label: "0.1Hz",
+            hasValue: false
+          },
+          {
+            value: "1",
+            label: "1Hz",
+            hasValue: false
+          },
+          {
+            value: "10",
+            label: "10Hz",
+            hasValue: false
+          },
+          {
+            value: "100",
+            label: "100Hz",
+            hasValue: false
+          }, {
+            value: "1000",
+            label: "1000Hz",
+            hasValue: false
+          },
+          {
+            value: "custom",
+            label: "Custom (in Hz) :",
+            validate: function (v) {
+              return /^[0-9]*(\.[0-9]+)?$/.test(v) && Number.parseFloat(v) > 0;
+            }
+          }
+        ],
+      });
+
+      $('#node-input-snapshotheader').typedInput({
+        default: 'direct',
+        typeField: "#node-input-mode",
+        types: [
+          {
+            value: "direct",
+            label: "direct",
+            hasValue: false
+          },
+          {
+            value: "snapshot",
+            label: "snapshot - Header address :",
+            validate: function (v) {
+              return /^0x[0-9A-Fa-f]{8}$/.test(v);
+            }
+          }
+        ],
+      });
+
+      RED.popover.tooltip($("#acquisition-parameters .red-ui-typedInput-input-wrap:last"), "Enter start header address in hexadecimal eg : 0x20000000");
+      $("#acquisition-parameters .red-ui-typedInput-input:last").attr("placeholder", "0x20000000");
+
+      let handler = function (type, value) {
+        if (value === "snapshot") {
+          if ($("#node-input-execonfig option:selected").val() !== "_ADD_") {
+            $("#node-input-snapshotheader").off('change', handler)
+            $("#node-input-snapshotheader").typedInput('value', window.headerAddress);
+            $("#node-input-snapshotheader").on('change', handler);
+            if (window.headerAddress.length === 0) {
+              RED.notify(node._("[SNAPSHOT MODE] : Default Start Header Address not present in executable configuration. Please select another configuration or change to Direct acquisition mode."), "warning");
+              $("#acquisition-parameters .red-ui-palette-header i").toggleClass('expanded', true);
+              $("#acquisition-parameters .section-content").toggle(true);
+              resizeList();
+            }
+          }
+          $("#node-input-snapshotheader").typedInput('validate');
+        }
+      };
+      $("#node-input-snapshotheader").on('change', handler);
+
+      function setUpSection(sectionId, isExpanded) {
+        const messageSection = $(sectionId);
+        const paletteHeader = messageSection.find('.red-ui-palette-header');
+        const twistie = paletteHeader.find('i');
+        const sectionContent = messageSection.find('.section-content');
+
+        function toggleSection(expanded) {
+          twistie.toggleClass('expanded', expanded);
+          sectionContent.toggle(expanded);
+        }
+
+        paletteHeader.click(function (e) {
+          e.preventDefault();
+          const isExpanded = twistie.hasClass('expanded');
+          toggleSection(!isExpanded);
+          openStatus = !isExpanded;
+          resizeList();
+        });
+        toggleSection(isExpanded);
+      }
+
+      setUpSection('#acquisition-parameters', openStatus);
+
+      $("#new-variable").on("click", function () {
+        $('#node-input-variablelist-container').editableList('addItem', { checked: false, newVar: true });
+      });
+
+      $("#clear-list").on("click", function () {
+        let items = Array.from($('#node-input-variablelist-container').editableList('items'));
+        let listToRemove = items.filter(item => !item.find(".node-input-variable-name").data("checked"));
+        listToRemove.forEach(elem => elem.parent().remove());
+
+        updateTriggerList();
+
+      });
+
+      $("#node-input-execonfig").change(function (e) {
+        let val = ($("#node-input-execonfig option:selected").val());
+        if (val === execonfig && (val === "_ADD_" || RED.nodes.node(val).configLastUpdate <= lastImportedTime)) {
+          return;
+        }
+        importConfig();
+        resizeList();
+      });
+
+      $("#node-input-triggerstartmode").change(function (e) {
+        if ($("#node-input-triggerstartmode option:selected").val() === "manual") {
+          document.getElementById('node-input-triggername').disabled = true;
+          document.getElementById('node-input-triggerthreshold').disabled = true;
+        } else {
+          document.getElementById('node-input-triggername').disabled = false;
+          document.getElementById('node-input-triggerthreshold').disabled = false;
+        }
+      });
+
+      $('#node-input-variablelist-container').css('min-height', '120px').css('min-width', '420px').editableList({
+        header: $("<div>").append($.parseHTML("<div style='width:calc(100% - 310px);display:inline-grid;padding-left:25px;margin-right:7px;'>Name</div><div style='margin-right:7px;width:100px;display: inline-grid'>Start Address</div><div style='width:140px;display: inline-grid'>Type</div>")),
+        sortable: false,
+        removable: true,
+        addButton: false,
+        sort: function (dataA, dataB) {
+          const importedA = dataA.checked || false;
+          const importedB = dataB.checked || false;
+          return (importedA === importedB) ? 0 : importedA ? -1 : 1;
+        },
+        addItem: (container, i, data) => {
+
+          const name = data.name ? data.name : "";
+          const address = data.address ? data.address : "";
+          const type = data.type ? data.type : 1;
+          const checked = data.checked || false;
+          const disabled = checked ? "disabled " : "";
+          const newVar = data.newVar || false;
+
+          $('<input ' + disabled + 'data-checked=' + checked + ' class="node-input-variable-name" required placeholder="name" style="padding:3px;height:65%;width:calc(100% - 277px);display:inline-grid;margin-right:7px" type="text" value="' + name
+            + '"><input ' + disabled + 'placeholder="address" maxlength="10" required pattern="^0x[0-9A-Fa-f]{8}$" class ="node-input-variable-address" style="padding:3px;height:65%;width:100px;display: inline-grid;margin-right:7px" type="text" value="' + address
+            + '">').appendTo(container);
+          let opt = { class: "node-input-variable-type", style: "padding:2px;height:65%;width:140px;" };
+          if (checked) opt.disabled = true;
+          const selectField = $('<select/>', opt).appendTo(container);
+          const selectOptions = [
+            { v: 1, l: "Unsigned 8-bit" },
+            { v: 2, l: "Signed 8-bit" },
+            { v: 3, l: "Unsigned 16-bit" },
+            { v: 4, l: "Signed 16-bit" },
+            { v: 5, l: "Unsigned 32-bit" },
+            { v: 6, l: "Signed 32-bit" },
+            { v: 9, l: "Float" },
+            { v: 10, l: "Double" }
+          ];
+          for (let i = 0; i < selectOptions.length; i++) {
+            selectField.append($("<option></option>").val(selectOptions[i].v).text(selectOptions[i].l));
+          }
+          selectField.val(type);
+          $('.node-input-variable-name').keyup(function (e) {
+            let name = $(this).val();
+            let count = 0;
+            $('#node-input-variablelist-container').editableList('items').each(function () {
+              let n = $(this).find('.node-input-variable-name').val();
+              if (n === name) count++;
+            });
+            if (count > 1) {
+              this.setCustomValidity('Variable already exists');
+            } else {
+              this.setCustomValidity('');
+            }
+          });
+          if (checked) {
+            container.siblings(".red-ui-editableList-item-remove.red-ui-button.red-ui-button-small").addClass("disabled").off("click");
+          } else if (data.newVar) {
+            $('.node-input-variable-name').focus();
+          }
+        },
+        removeItem: function (data) {
+          updateTriggerList();
+          // updatePattern();
+        }
+      });
+
+
+      let val = ($("#node-input-execonfig option:selected").val());
+      let imported = [];
+      if (val !== "_ADD_") {
+        lastImportedTime = Date.now();
+        imported = RED.nodes.node(val).exevariablelist.filter(elem => elem.checked);
+        let importedAddrHeader = RED.nodes.node(val).exevariablelist.filter((elem) => elem.name === "g_traceHeader.startMark[0]");
+        window.headerAddress = importedAddrHeader.length == 0 ? "" : importedAddrHeader[0].address;
+        $(".red-ui-typedInput-container div.red-ui-typedInput-input-wrap .red-ui-typedInput-input:last").attr('disabled', true);
+      }
+      if (this.variablelist.length === 0 && imported.length === 0) {
+        clearTriggerList();
+      } else {
+        const varlist = imported.concat(this.variablelist);
+        $('#node-input-triggername').find('option').remove();
+        varlist.forEach(prop => {
+          $('#node-input-variablelist-container').editableList('addItem', prop);
+          $('#node-input-triggername').append(new Option(prop.name, prop.name));
+        });
+        if (this.triggername !== "") {
+          $('#node-input-triggername').val(this.triggername);
+        } else {
+          $('#node-input-triggername').val($("#node-input-triggername option:first").val());
+        }
+      }
+
+
+      function updateTriggerList() {
+        let triggerSelected = $("#node-input-triggername option:selected").val();
+        let allVar = document.querySelectorAll("#node-input-variablelist-container .red-ui-editableList-item-removable");
+        if (allVar.length > 0) {
+          $('#node-input-triggername')
+            .find('option')
+            .remove()
+            .end();
+          allVar.forEach(function (element) {
+            let val = element.querySelector(".node-input-variable-name").value;
+            $('#node-input-triggername').append(new Option(val, val));
+            if (triggerSelected === val) {
+              $("#node-input-triggername").val(triggerSelected);
+            }
+          });
+          updatePattern();
+        } else {
+          clearTriggerList();
+        }
+      }
+
+      function updatePattern() {
+        let allItems = document.querySelectorAll("#node-input-variablelist-container .red-ui-editableList-item-removable");
+        Array.from(allItems).forEach(function (elem) {
+          if (elem.querySelector(".node-input-variable-name") !== null && elem.querySelector(".node-input-variable-name").value === $('#node-input-triggername').val()) {
+            let thresholdDiv = document.getElementById("node-input-triggerthreshold");
+            thresholdDiv.pattern = REGEXMAP[elem.querySelector('.node-input-variable-type').value];
+          }
+        });
+      }
+
+      $('#node-input-triggername').change(function (e) {
+        updatePattern();
+      });
+
+      $('#node-input-variablelist-container').editableList().change(function (e) {
+        if (e.target.className !== "node-input-variable-address") {
+          updateTriggerList();
+        }
+      });
+
+    },
+
+    oneditsave() {
+      const props = [];
+      const imported = [];
+      let val = $("#node-input-execonfig").val();
+      this.openStatus = openStatus;
+      this.lastImportedTime = (val && val !== "_ADD_") ? lastImportedTime : -1;
+      $('#node-input-variablelist-container').editableList('items').each(function () {
+        let n = $(this).find('.node-input-variable-name').val();
+        let i = $(this).find('.node-input-variable-name').data("checked");
+        let a = $(this).find('.node-input-variable-address').val();
+        let t = $(this).find('.node-input-variable-type').val();
+        let foundSameVariable = props.filter(i => i.name === n);
+        let regexAddress = /^0x[0-9A-Fa-f]{8}$/;
+        if (i) {
+          imported.push(n);
+        } else if (n && a && regexAddress.test(a)
+          // Keep only manual variable in variablelist
+          // Should not already be part of imported variable from exe-config
+          && imported.findIndex(e => e === n) < 0
+          // Should have be unique (no duplicated variable name) 
+          && foundSameVariable.length < 1) {
+          let o = {
+            name: n,
+            address: a,
+            type: t,
+          };
+          props.push(o);
+        }
+      });
+      this.variablelist = props;
+      window.headerAddress = "";
+    },
+
+    oneditresize: function (size) {
+      const rows = $("#dialog-form>div:not(.node-input-variablelist-container-row):visible");
+      let height = size.height;
+      for (let i = 0; i < rows.size(); i++) {
+        height -= $(rows[i]).outerHeight(true);
+      }
+      const editorRow = $("#dialog-form>div.node-input-variablelist-container-row");
+      height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom"))) + 42;
+      $("#node-input-variablelist-container").editableList('height', height);
+    }
+  });
+</script>
+<!-- #endregion variables -->

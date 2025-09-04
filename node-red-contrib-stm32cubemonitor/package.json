@@ -1,0 +1,102 @@
+{
+  "name": "@stm32/node-red-contrib-stm32cubemonitor",
+  "version": "2.3.3",
+  "copyright": "STMicroelectronics",
+  "productName": "STM32CubeMonitor flows",
+  "description": "This package contains the necessary node-red nodes to build a STM32CubeMonitor flow",
+  "main": "none",
+  "scripts": {
+    "clean": "concurrently --kill-others-on-fail \"npm run clean:js\" \"npm run clean:json\"",
+    "clean:css": "npm run prettier:css && npm run lint:css",
+    "clean:js": "npm run prettier:js && npm run lint:js",
+    "clean:json": "npm run prettier:json",
+    "doc:generate": "jsdoc nodes -r -d docs",
+    "lint:css": "stylelint nodes/*",
+    "lint:js": "eslint nodes/*.js test/*.js --fix",
+    "lint:acq": "eslint nodes/acquisition.js --fix",
+    "prettier:css": "prettier nodes/*.css --write",
+    "prettier:js": "prettier nodes/*.js test/*js --write",
+    "prettier:json": "prettier *.json --write",
+    "release": "standard-version",
+    "test": "mocha \"test/*_spec.js\" --timeout 10000",
+    "test-report": "nyc --reporter=html --reporter=text mocha \"test/*_spec.js\"",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.css": [
+      "prettier --write",
+      "stylelint"
+    ],
+    "*.js": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.json": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "STMicroelectronics",
+    "Monitor",
+    "STM32",
+    "CubeMonitor",
+    "Tool",
+    "processing"
+  ],
+  "node-red": {
+    "nodes": {
+      "acquisition": "nodes/acquisition.js",
+      "acquisitionjlink": "nodes/acquisitionjlink.js",
+      "chart": "nodes/chart.js",
+      "processing": "nodes/processing.js",
+      "variables": "nodes/variables.js",
+      "write": "nodes/writevariables.js",
+      "activity": "nodes/activity.js",
+      "3D": "nodes/3Dnode.js",
+      "radar": "nodes/radar.js"
+    }
+  },
+  "author": "STMicroelectronics",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "dependencies": {
+    "@d3fc/d3fc-rebind": "6.0.1",
+    "@d3fc/d3fc-sample": "5.0.1",
+    "@stm32/stm32cubemonitor-acquisitionservices": "^1.9.1",
+    "@stm32/stm32cubemonitor-elfparser": "^1.4.0",
+    "d3": "^7.9.0",
+    "fs-extra": "^11.2.0",
+    "hyperlist": "^1.0.0",
+    "mathjs": "^13.0.2",
+    "mustache": "^4.2.0",
+    "path": "^0.12.7",
+    "select2": "^4.1.0-rc.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.16.0",
+    "chai": "^4.4.1",
+    "concurrently": "^9.1.0",
+    "eslint": "9.16.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsdoc": "50.6.0",
+    "globals": "^15.13.0",
+    "husky": "^9.1.7",
+    "jsdoc": "^4.0.4",
+    "lint-staged": "^15.2.10",
+    "mocha": "^11.0.1",
+    "node-red": "^4.0.5",
+    "node-red-node-test-helper": "^0.3.4",
+    "nyc": "^17.1.0",
+    "prettier": "3.4.2",
+    "should": "^13.2.3",
+    "sinon": "^18.0.0",
+    "standard-version": "^9.5.0",
+    "stylelint": "^14.16.1",
+    "stylelint-config-prettier": "^9.0.5"
+  },
+  "overrides": {
+    "express": "4.21.2"
+  }
+}

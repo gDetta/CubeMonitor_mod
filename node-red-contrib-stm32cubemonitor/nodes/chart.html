@@ -1,0 +1,310 @@
+<!--
+* module node-red-contrib-stm32cubemonitor
+* Copyright(c) 2019 STMicroelectronics
+-->
+<script type="text/x-red" data-template-name="ui_chartst">
+  <div class="form-row" id="template-row-group">
+      <label for="node-input-group"><i class="fa fa-table"></i> Group</label>
+      <input type="text" id="node-input-group">
+  </div>
+
+  <div class="form-row" id="template-row-size">
+      <label><i class="fa fa-object-group"></i> Size</label>
+      <input type="hidden" id="node-input-width">
+      <input type="hidden" id="node-input-height">
+      <button class="red-ui-button" id="node-input-size"></button>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-chartType"><i class="fa fa-line-chart"></i> Chart type</label>
+    <select id="node-input-chartType" style="width:120px; font-family:'FontAwesome','Helvetica Neue', Helvetica, Arial, sans-serif">
+        <option value="line"> &#xf201; Line chart</option>
+        <option value="bar"> &#xf080; Bar chart</option>
+    </select>
+  </div>
+
+  <div class="form-row" id="curveType-show">
+    <label for="node-input-curveType"><i class="fa fa-line-chart"></i> Curve type</label>
+      <select id="node-input-curveType" style="width:120px;">
+        <option value="linear">linear</option>
+        <option value="monotoneX">monotoneX</option>
+        <option value="natural">natural</option>
+        <option value="step">step</option>
+        <option value="step after">step after</option>
+        <option value="step before">step before</option>
+      </select>
+  </div>
+
+  <div class="form-row" id="duration-show">
+      <label for="node-input-duration"><i class="fa fa-table"></i> Duration (s)</label>
+      <input type="number" id="node-input-duration" min="1" value="10" placeholder="sliding window duration in seconds (min 1s)">
+  </div>
+
+  <div class="form-row" id="y-axis-show">
+      <label id="y-label-show" for="node-input-ymin">Y-axis</label>
+      <label for="node-input-ymin" style="width:auto">min</label>
+      <input type="text" id="node-input-ymin" style="width:92px">
+      <label for="not-input-ymax" style="width:auto; margin-left:20px;">max</label>
+      <input type="text" id="node-input-ymax" style="width:92px">
+  </div>
+
+  <div class="form-row">
+      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+      <input type="text" id="node-input-name">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="ui_chartst">
+  <p>This node allows to plot input values on a chart. This chart can be a line chart or a bar chart.<br>
+    The line chart renders all the input values included in a time sliding window and the chart will auto-scale to any values received. Input values older than 1 hour are discarded to limit the memory consumption.<br>
+    The bar chart renders all the input values using vertical rectangular bars.<br>
+    For all charts, multiple series can be shown by using different <code>groupname</code>/<code>variablename</code> values on each input message (see section <code>Input</code> for more details).<br>
+    The chart can also render one data log performed during previous monitoring session.<br>
+    A set of 10 colors is available to render <code>groupname</code>/<code>variablename</code> values.<br>
+  </p><br>
+  <h3>Properties</h3>
+  <dl class="message-properties">
+    <dt>Group<span class="property-type">Dashboard group</span></dt>
+    <dd>Allows to define the dashboard group in which the chart will be rendered.</dd>
+    <dt>Size<span class="property-type">(width x height) or auto</span></dt>
+    <dd>Allows to specify the chart size in:
+      <ul>
+        <li><code>Fixed mode</code> In that case, you specify the width and height of the chart with fixed numbers of units.</li>
+        <li><code>Auto mode</code> In this case, the chart will fill the width of the dashboard group. The chart height will be automatically set as half of width value.</li>
+      </ul>
+    </dd>
+    <dt>Chart type<span class="property-type">list box</span></dt>
+    <dd>Allows to specify the chart type:
+      <ul>
+        <li><code>Line chart</code>Produces a line chart.</li>
+        <li><code>Bar chart</code>Produces a bar chart.</li>
+      </ul>
+    </dd>
+    <dt>Curve type<span class="property-type">list box</span></dt>
+    <dd>Allows to specify the line chart type:
+      <ul>
+        <li><code>linear</code>Produces a polyline through the specified points.</li>
+        <pre>
+          <img src="images/linear.png" alt="Linear example">
+        </pre>
+        <li><code>monotoneX</code>Produces a cubic spline that preserves monotonicity in y, assuming monotonicity in x a smooth curve with continuous first-order derivatives that passes through any given set of data points without spurious oscillations.</li>
+        <pre>
+          <img src="images/monotoneX.png" alt="Spline (monotoneX) example">
+        </pre>
+        <li><code>natural</code>Produces a natural cubic spline with the second derivative of the spline set to zero at the endpoints.</li>
+        <pre>
+          <img src="images/natural.png" alt="Spline (natural) example">
+        </pre>
+        <li><code>step</code>Produces a step line consisting of alternating horizontal and vertical lines. The y-value changes at the midpoint of each pair of adjacent x-values.</li>
+        <pre>
+          <img src="images/step.png" alt="step line example">
+        </pre>
+        <li><code>step after</code>Produces a step line consisting of alternating horizontal and vertical lines. The y-value changes after the x-value.</li>
+        <pre>
+          <img src="images/stepAfter.png" alt="step after line example">
+        </pre>
+        <li><code>step before</code>Produces a step line consisting of alternating horizontal and vertical lines. The y-value changes before the x-value.</li>
+        <pre>
+          <img src="images/stepBefore.png" alt="step before line example">
+        </pre>
+      </ul>
+    </dd>
+    <dt>Duration<span class="property-type">second(s)</span></dt>
+    <dd>Allows to define the time sliding window duration in seconds for a line chart. The minimal value is 1s. Default is 10s if no value set.</dd>
+    <dt>Y-Axis<span class="property-type">number</span></dt>
+    <dd>Allows to define the Y axis lower and upper bounds for a bar chart.<br>
+      If the min and/or max value(s) is (are) not set, the bar chart will autoscale to any values received (with the 0 value centered in the middle of the graph).
+    </dd>
+    <dt>Name<span class="property-type">string</span></dt>
+    <dd>Name of the node in the flow, "Chart" if empty.</dd>
+  </dl><br>
+  <h3>Input</h3>
+    <p>Each input <code>msg</code> requires a <code>topic</code> and a <code>payload</code> to be processed:</p>
+    <dl class="message-properties">
+      <dt>topic<span class="property-type">string</span></dt>
+      <dd>The <code>topic</code> value is set to:
+        <ul>
+          <li><code>data</code> to render monitored data in ST line chart</li>
+          <li><code>clear</code> to clear and reset ST line chart</li>
+        </ul>
+      </dd>
+      <dt>payload (for <code>topic</code><code>data</code>)<span class="property-type">object</span></dt>
+      <dd>The <code>payload</code> contains:
+        <ul>
+          <li><code>groupname</code> string</li>
+          <li><code>variablename</code> string</li>
+          <li><code>variabledata</code> array of data</li>
+          <ul>
+            <li><code>coordinates</code> coordinate object</li>
+            <ul>
+              <li><code>x</code> number</li>
+              <li><code>y</code> number</li>
+            </ul>
+          </ul>
+        </ul>
+      </dd>
+    <p>The following example shows an input <code>msg</code> for a chart node for the variable "var1" :</p>
+    <pre>
+      {
+        "topic":"data",
+        "payload":
+        {
+          "groupname": "groupname1",
+          "variablename": "var1",
+          "variabledata": [
+            {
+              "x": "0",
+              "y": "1231"
+            },
+            {
+              "x": "1",
+              "y": "12"
+            },
+            {
+              "x": "2",
+              "y": "3615"
+            }
+          ]
+        }
+      }
+    </pre>
+    </dl><br>
+
+    <h3>Chart node in flow</h3>
+    <p>The chart node is designed to be typically:</p>
+    <dl class="message-properties">
+      <ul>
+        <li>Front linked with one (or several) processing node(s)</li>
+        <li>Button(s) to clear and reset the chart</li>
+      </ul>
+      <pre>
+        <img src="images/STChart.png" alt="basic flow for the chart">
+      </pre>
+    </dl><br>
+
+    <h3>Chart main buttons</h3>
+    <p>The chart provides several buttons:</p>
+    <dl class="message-properties">
+      <ul>
+        <li><code>Show All</code> button: Allows to render all input values since the beginning of the monitoring session for a line chart or the last input value for a bar chart.
+        </li>
+        <li><code>Zoom</code> / <code>Brush</code> button: Allows to select the <code>Zoom</code> mode or the <code>Brush</code> mode:
+        </li>
+        <ul>
+          <li><code>Brush</code> mode: this is the default mode after deploying the dashboard. And you can go back in the <code>Brush</code> mode by clicking on "Brush" button.
+            For the line chart, this mode allows to select one two-dimensional region in order to zoom-in that region.
+            For the bar chart, this mode allows to select one-dimensional region along the y-dimension in order to zoom-in that region.
+            The region selection can be performed by pressing the left mouse button, then brushing the region and finally releasing the left mouse button.
+          </li>
+          <li><code>Zoom</code> mode: You can go in the <code>Zoom</code> mode by clicking on "Zoom" button.
+            This mode allows to zoom and pan in the chart. Zoom can be performed by spinning the mouse wheel. Pan can be performed by clicking-and-dragging.
+          </li>
+        </ul>
+        <li><code>Show Points</code><br>
+          <ul>
+            <li>
+              For a line chart, allows to render each input value with a dot.
+              For each variable, dots will be rendered as soon there are less than 200 input values to be displayed.
+              Input values information (variable name, x-value and y-value) is displayed for points whose x value is closest to the mouse pointer.
+            </li>
+            <li>
+              For a bar chart, allows to render each input value(s) above/below bar(s).
+            </li>
+          </ul>
+        </li>
+        <li>Each<code>variablename</code> button: Allows to hide or display inputs values related to the <code>variablename</code> on the chart.
+        </li>
+        <li><code>Import data ...</code> button: Allows to render on the chart one data log previously done. One acquisition can be splitted into several files of maximum 100MB size each.
+            <br>The number of generated files for one acquisition will be related to :
+              <ul>
+                <li> Number of monitored variables.</li>
+                <li> Acquisition frequency.</li>
+                <li> Log type ( all values or only changes ).</li>
+              </ul>
+              For example :
+              <ul>
+                <li>1 generated file for an acquisition of  1 variable during 25 hours at 10 Hz.</li>
+                <li>4 generated files for an acquisition of 10 variables during 2 hours with an ST LINK V3 in sequential loop. </li>
+            </ul>
+              The directory path where you can find the log files could be configured in settings.js file ( default path is  home directory / log ).
+        </li>
+      </ul>
+    </dl><br>
+</script>
+
+<script type="text/javascript">
+  RED.nodes.registerType("ui_chartst", {
+    category: "STMicroelectronics",
+    color: "#3cb4e6",
+    defaults: {
+      group: { type: "ui_group", required: true },
+      name: { value: "" },
+      order: { value: 0 },
+      width: {
+        value: 0,
+        validate: function (v) {
+          var valid = true;
+          var width = v || 0;
+          var currentGroup = $("#node-input-group").val() || this.group;
+          var groupNode = RED.nodes.node(currentGroup);
+          valid = !groupNode || +width <= +groupNode.width;
+          $("#node-input-size").toggleClass("input-error", !valid);
+          return valid;
+        }
+      },
+      height: { value: 0 },
+      chartType: { value: "line" },
+      curveType: { value: "linear", required: true },
+      duration: { value: "10" },
+      ymin: {
+        value: "",
+        validate: function (value) {
+          return value === "" || RED.validators.number();
+        }
+      },
+      ymax: {
+        value: "",
+        validate: function (value) {
+          return value === "" || RED.validators.number();
+        }
+      }
+    },
+    inputs: 1,
+    outputs: 0,
+    icon: "ui_chart.png",
+    align: "right",
+    paletteLabel: "chart",
+    label: function () {
+      return this.name || "Chart";
+    },
+    oneditprepare: function () {
+      $("#node-input-size").elementSizer({
+        width: "#node-input-width",
+        height: "#node-input-height",
+        group: "#node-input-group"
+      });
+
+      if (!$("#node-input-chartType").val()) {
+        $("#node-input-chartType").val("line");
+      }
+
+      if (!$("#node-input-curveType").val()) {
+        $("#node-input-curveType").val("linear");
+      }
+
+      $("#node-input-chartType").on("change", function () {
+        if ($(this).val() === "line") {
+          $("#curveType-show").show();
+          $("#duration-show").show();
+          $("#y-axis-show").hide();
+        } else {
+          $("#curveType-show").hide();
+          $("#duration-show").hide();
+          $("#y-axis-show").show();
+        }
+      });
+    },
+    oneditsave: function () { },
+    oneditresize: function (size) { }
+  });
+</script>

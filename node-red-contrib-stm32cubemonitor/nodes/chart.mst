@@ -1,0 +1,304 @@
+<!--
+* module node-red-contrib-stm32cubemonitor
+* Copyright(c) 2019 STMicroelectronics
+-->
+<script src="d3/d3.min.js"></script>
+<script src="d3/d3fc-rebind.min.js"></script>
+<script src="d3/d3fc-sample.min.js"></script>
+<script src="linechart.js"></script>
+<script src="barchart.js"></script>
+<link rel="stylesheet" href="select2/css/select2.min.css" />
+<script src="select2/js/select2.min.js"></script>
+
+<style>
+body {font-family: Arial, Helvetica, sans-serif;}
+
+/* The Modal (background) */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    opacity:0.99;
+    z-index: 100; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+    position: relative;
+    /*background-color: #fefefe;*/
+    background-color: var(--nr-dashboard-widgetBgndColor);
+    margin: auto;
+    padding: 0;
+    /*border: 1px solid #888;*/
+    border-radius:2px;
+    width: 50%;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+    -webkit-animation-name: animatetop;
+    -webkit-animation-duration: 0.4s;
+    animation-name: animatetop;
+    animation-duration: 0.4s
+}
+
+/* Add Animation */
+@-webkit-keyframes animatetop {
+    from {top:-300px; opacity:0} 
+    to {top:0; opacity:1}
+}
+
+@keyframes animatetop {
+    from {top:-300px; opacity:0}
+    to {top:0; opacity:1}
+}
+
+/* The Close Button */
+.close {
+    color: white;
+    float: right;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: #9CD4ED;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-header {
+    padding: 2px 16px;
+    background-color: var(--nr-dashboard-widgetColor) !important;
+    border-radius: 2px 2px 0 0;
+}
+
+.modal-header h2 {
+    background-color: var(--nr-dashboard-widgetColor) !important;
+    color: white !important;
+    font-size:1.1em;
+    font-weight:inherit;
+}
+
+.modal-body {padding: 2px 16px;}
+
+.modal-footer {
+    padding: 5px 16px;
+    background-color: var(--nr-dashboard-widgetBgndColor);
+    height:36px;
+    color: white;
+    border-radius: 0 0 2px 2px;
+}
+
+.importModalBtn {
+    float: right;
+    height:36px;
+    min-height:0px!important;
+}
+.importButton {
+  border: 0px;
+  min-height:{{sizes.sy}}px!important;
+}
+
+.select2,
+.select2-container,
+.select2-container--default,
+.select2-container--below,
+.select2-container--open {
+  width:100% !important;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--nr-dashboard-widgetColor)!important;
+}
+.chartVariableContainer:focus {
+  outline: none;
+}
+
+.yAxis line {
+  opacity : 0.2;
+}
+
+/* Force nr-dashboard-template padding to 0 to have same padding between custom and native widgets  */
+.nr-dashboard-template {
+  padding: 0px 0px;
+}
+</style>
+
+<!-- Chart -->
+<div id="{{id}}"></div>
+<!-- Trigger/Open The Modal -->
+<md-button class="importButton" id="myBtn_{{id}}"  ng-click="openModal()">Import data</md-button>
+
+<!-- The Modal -->
+<div id="myModal_{{id}}" class="modal">
+
+<!-- Modal content -->
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="close_{{id}}" class="close">&times;</span>
+      <h2>Select File</h2>
+    </div>
+    <div class="modal-body">
+      <div>
+        <label for="filepath"><i class="fa fa-random"></i> File path</label>
+        <select class="js-data-example-ajax" type="text" id="filepath_{{id}}"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <md-button class="importModalBtn" id="importBtn_{{id}}" ng-click="importData()">Import</md-button>
+    </div>
+  </div>
+
+</div>
+
+<script type="text/javascript">
+  'use strict';
+
+  (function(scope) {
+    // console.log("function(scope) - id = " + "{{id}}");
+  
+    // Get the modal
+    let modal = document.getElementById("myModal_{{id}}");
+    let imported;
+  
+    scope.importData = function() {
+      let val = $("#filepath_{{id}}").val();
+      let startIndex = 0;
+      modal.style.display = "none";
+      if (val) {
+        let url = "import/" + val;
+        $.get(url, function(data, status) {
+          if (status === "success") {
+            chart.clearChart();
+            let tab = data.split(/\r\n|\r|\n/);
+            // remove extra '[' at start and ']' at end
+            let firstLine = tab[0];
+            let lastLine = tab[tab.length - 1];
+            if (firstLine[0] ==='[' && lastLine[0] ===']' ) {
+              startIndex = 1;
+              tab[tab.length-1] = "" ;
+            }
+            for (let i = startIndex ; i < tab.length - 1; i++) {
+              let line=tab[i];
+              if (line[line.length-1]===",") {
+                line=line.slice(0,-1);
+              }
+              try {
+                let rawdata = JSON.parse(line);
+                chart.updateChart(rawdata, false);
+              } catch (e) {
+                console.error("Parsing error:", e);
+              }
+            }
+            imported = true;
+            chart.renderFullData();
+          }
+        });
+      }
+    };
+  
+    // Get the <span> element that closes the modal
+    let span = document.getElementById("close_{{id}}");
+  
+    // When the user clicks on the button, open the modal
+    scope.openModal = function() {
+      modal.style.display = "block";
+    };
+  
+    // When the user clicks on <span> (x), close the modal
+    span.onclick = function() {
+      modal.style.display = "none";
+    };
+  
+    // Fill the select2 option list  with file path present on the backend
+    $("#filepath_{{id}}").select2({
+      placeholder: "Select a data log file",
+      minimumResultsForSearch: -1,
+      ajax: {
+        url: "listlogfile",
+        type: "GET",
+        processResults: function(data) {
+          let filelist = $.map($.makeArray(data), function(obj) {
+            obj.text = obj.text || obj.name;
+            obj.id = obj.id || obj.filePath;
+            return obj;
+          });
+          // Sort filelist to display the most recent files first
+          filelist.sort((a, b) => {
+            return b.name.localeCompare(a.name);
+          });
+          return { results: filelist };
+        }
+      }
+    });
+  
+
+    // Create one line chart object
+    const widgetUnit = {
+      sx: {{sizes.sx}},
+      sy: {{sizes.sy}},
+      cx: {{sizes.cx}},
+      cy: {{sizes.cy}}
+    };
+
+    switch("{{chartType}}") {
+      case "line":
+        const lineChartConfig = {
+          divId: "{{id}}",
+          curveType: "{{curveType}}",
+          width: {{width}},
+          height: {{height}},
+          widgetUnit: widgetUnit,
+          slidingWindowDuration: {{duration}}
+        };
+        var chart = new LineChart(lineChartConfig);
+        break;
+      case "bar":
+        const barChartConfig = {
+          divId: "{{id}}",
+          width: {{width}},
+          height: {{height}},
+          widgetUnit: widgetUnit,
+          yMin: "{{yMin}}",
+          yMax: "{{yMax}}"
+        };
+        var chart = new BarChart(barChartConfig);
+        break;
+      default:
+        console.error("Unknown chart type");
+        break;
+    }
+
+    // 
+    // Entry point of data coming from processing node
+    // 
+    scope.$watch("msg", msg => {
+      if (msg) {
+        switch (msg.topic) {
+          case "clear":
+            const oldDatasets = chart.dataSets.map(function(elem) {return {variablename: elem.variablename, groupname: elem.groupname}});
+            chart.clearChart();
+            if (!imported) {
+              for (let i = 0; i < oldDatasets.length; i++) {
+                chart.findDataset(chart.dataSets,oldDatasets[i].groupname, oldDatasets[i].variablename);
+              }
+              chart.firstts = null;
+            }
+            imported = false;
+            break;
+          case "data":
+            chart.updateChart(msg.payload, true);
+            break;
+          default:
+            console.log("unknown topic = " + msg.topic);
+            break;
+        }
+      }
+    });
+  })(scope);
+</script>

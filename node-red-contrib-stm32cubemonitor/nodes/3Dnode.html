@@ -1,0 +1,106 @@
+<!--
+* module node-red-contrib-stm32cubemonitor
+* Copyright(c) 2022 STMicroelectronics
+-->
+<script type="text/javascript">
+    RED.nodes.registerType('ui_3D',{
+        category: 'STMicroelectronics',
+        color: '#3cb4e6',
+        defaults: {
+            group: {type: 'ui_group', required:true},
+            order: {value: 0},
+            width: {
+                value: 0,
+                validate: function(v) {
+                    var valid = true
+                    var width = v||0;
+                    var currentGroup = $('#node-input-group').val()|| this.group;
+                    var groupNode = RED.nodes.node(currentGroup);
+                    valid = !groupNode || +width <= +groupNode.width;
+                    $("#node-input-size").toggleClass("input-error",!valid);
+                    return valid;
+                }},
+            height: {value: 0},
+            name: {value: ''},
+
+        },
+        inputs:1,
+        outputs:0,
+        icon: "font-awesome/fa-arrows-alt",
+
+        paletteLabel:"3D",
+
+        label: function() {
+            return this.name||"3D";
+        },
+        labelStyle: function() {
+            return this.name?"node_label_italic":"";
+        },
+
+        oneditprepare: function() {
+            $("#node-input-size").elementSizer({
+                width: "#node-input-width",
+                height: "#node-input-height",
+                group: "#node-input-group"
+            });
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="ui_3D">
+    
+    <div class="form-row" id="template-row-group">
+        <label for="node-input-group"><i class="fa fa-table"></i> Group</span></label>
+        <input type="text" id="node-input-group">
+    </div>
+
+    <div class="form-row" id="template-row-size">
+        <label><i class="fa fa-object-group"></i> Size</span></label>
+        <input type="hidden" id="node-input-width">
+        <input type="hidden" id="node-input-height">
+        <button class="editor-button" id="node-input-size"></button>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="ui_3D">
+    <p>A Node-RED dashboard node to display the picture of a board, 3D oriented according to given coordinates.</p>
+    <p>The orientation is given by the input message. The picture is embedded in the widget and can not be changed</p>
+    <h3>Properties</h3>
+    <dl class="message-properties">
+        <dt>Group<span class="property-type">Dashboard group</span></dt>
+        <dd>Allows to define the dashboard group in which the 3D board will be rendered.</dd>
+        <dt>Size<span class="property-type">(width x height) or auto</span></dt>
+        <dd>Allows to specify the widget size in:
+          <ul>
+            <li><code>Fixed mode</code> In that case, you specify the width and height of the widget with fixed numbers of units.</li>
+            <li><code>Auto mode</code> In this case, the widget will fill the width of the dashboard group. </li>
+          </ul>
+        </dd>
+      <dt>Name<span class="property-type">String</span></dt>
+      <dd>The name of the widget in the editor.
+    </dl>
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">object</span></dt>
+        <dd>payload is an object representing the orientation. The payload object holds the 3 axis rotations:
+        <ul>
+          <li><code>x :</code> Rotation along X axis. The X axis is the horizontal axis on the screen (vertical screen)</li>
+          <li><code>y :</code> Rotation along y axis. The Y axis is the vertical axis on the screen </li>
+          <li><code>z :</code> Rotation along z axis. The Z axis is perpendicular to the screen plane</li>           
+        </ul>
+      </dd>
+    <p>The following example shows an input <code>msg</code> for the 3D node:</p>
+    <pre>
+        "payload": {
+            "x": 80,
+            "y": 48,
+            "z": 35            
+        }
+    </pre>
+    </dl>
+</script>
